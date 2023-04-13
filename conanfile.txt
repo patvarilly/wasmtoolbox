@@ -1,0 +1,9 @@
+[requires]
+# Nothing for now
+
+[options]
+# Nothing for now
+
+[generators]
+cmake_find_package
+cmake_paths
