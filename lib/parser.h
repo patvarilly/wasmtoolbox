@@ -21,6 +21,17 @@
 
 namespace wasmtoolbox {
 
+// The structure of the parser closely follows the structure of the WebAssembly spec + a few extensions:
+//
+// - WebAssembly Core Spec 2.0 (Draft 2023-04-08):
+//     https://webassembly.github.io/spec/core/
+// - Threads extension (1.1 Draft Nov 20, 2020):
+//     https://webassembly.github.io/threads/core/
+// - Exception handling spec: (2.0 Draft 2023-04-12 + exception handling Draft, Apr 12, 2023)
+//     https://webassembly.github.io/exception-handling/core/
+// - Extended name section (1.0, Draft Jul 08, 2019):
+//     https://www.scheidecker.net/2019-07-08-extended-name-section-spec/appendix/custom.html
+
 // 5.5.2 Sections
 enum Section_id : uint8_t {
   k_section_custom     =  0,
@@ -37,8 +48,7 @@ enum Section_id : uint8_t {
   k_section_data       = 11,
   k_section_data_count = 12,
 
-  // See: https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/Exceptions.md
-  // Also see https://searchfox.org/mozilla-central/source/js/src/wasm/WasmConstants.h#46
+  // From Exception Handling spec
   k_section_tag        = 13
 };
 

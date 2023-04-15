@@ -344,7 +344,7 @@ auto Wasm_parser::parse_functype() -> void {
 // 5.3.7 Limits
 // ------------
 auto Wasm_parser::parse_limits() -> void {
-  // Including thread extensions: https://webassembly.github.io/threads/
+  // Including thread extensions
   auto b_offset = cur_offset;
   auto b = parse_byte();
   switch (b) {
@@ -828,7 +828,7 @@ auto Wasm_parser::parse_customsec() -> void {
     [[maybe_unused]] auto name = parse_name();
     //std::cerr << "Custom section '" << name << "'\n";
     if (name == "name") {
-      // See https://github.com/WebAssembly/extended-name-section/blob/main/proposals/extended-name-section/Overview.md
+      // Including additions from extended name section spec
       while (cur_offset < end_offset) {
         auto N_offset = cur_offset;
         auto N = Name_subsection_id{cur_byte};
@@ -1032,7 +1032,7 @@ auto Wasm_parser::parse_export() -> void {
 }
 
 auto Wasm_parser::parse_exportdesc() -> void {
-  // See https://searchfox.org/mozilla-central/source/js/src/wasm/WasmValidate.cpp#2414 for "tag"
+  // Including additions from the exception handling spec
   auto b_offset = cur_offset;
   auto b = parse_byte();
   switch (b) {
@@ -1168,7 +1168,6 @@ auto Wasm_parser::parse_datacountsec() -> void {
 
 // [EXTRA] Tag Section (5.5.16 in Exception Handling Spec)
 // -------------------------------------------------------
-// See https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/Exceptions.md#tag-section
 
 auto Wasm_parser::parse_tagsec() -> void {
   parse_section(k_section_tag, [&](auto /*size*/) {
