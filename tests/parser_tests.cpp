@@ -55,13 +55,34 @@ TEST(parser, just_magic) {
 }
 
 TEST(parser, just_magic_and_version) {
-  // This is the smallest WASM module ever
+  // This is the smallest valid WASM module
+  auto bytes = std::vector<uint8_t>{
+    0x00, 0x61, 0x73, 0x6D,  // magic
+    0x01, 0x00, 0x00, 0x00,  // version
+    0x00,                    // Custom section (id = 0)
+    0x0d,                    // Size (u32)
+    0x04,                    // Custom section name length (4 bytes)
+    'n', 'a', 'm', 'e',      // Custom section name "name"
+    0x00,                    // Name subsection id (0 = "module name")
+    0x06,                    // Name subsection 0 size (u32)
+    0x05,                    // Module name length
+    'h', 'e', 'l', 'l', 'o'  // Module name
+  };
+  auto is = Memstream{bytes};
+  auto module = parse_wasm(is);  // Should work!
+
+  EXPECT_THAT(module.name.value(), testing::StrEq("hello"));
+}
+
+TEST(parser, min_module_with_name) {
   auto bytes = std::vector<uint8_t>{
     0x00, 0x61, 0x73, 0x6D,  // magic
     0x01, 0x00, 0x00, 0x00   // version
   };
   auto is = Memstream{bytes};
-  parse_wasm(is);  // Should work!
+  auto module = parse_wasm(is);  // Should work!
+
+  EXPECT_THAT(module.name, testing::Eq(std::nullopt));
 }
 
 TEST(parser, u8) {
@@ -223,8 +244,9 @@ TEST(parser, parse_customsec) {
     0xBA};
   auto is = Memstream{bytes};
   auto parser = Wasm_parser{is};
-
-  parser.parse_customsec();
+  auto module = Ast_module{};
+  
+  parser.parse_customsec(module);
   EXPECT_THAT(parser.parse_byte(), testing::Eq(0xBA));
 }
 

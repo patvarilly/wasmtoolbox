@@ -19,6 +19,8 @@
 
 #include <iostream>
 
+#include "ast.h"
+
 namespace wasmtoolbox {
 
 // The structure of the parser closely follows the structure of the WebAssembly spec + a few extensions:
@@ -385,9 +387,11 @@ struct Wasm_parser {
   auto parse_section(Section_id section_id, std::invocable<uint32_t /*size*/> auto section_parser) -> void;
 
   // 5.5.3 Custom Section
-  auto parse_customsec() -> void;
+  auto parse_customsec(Ast_module& module) -> void;
   // > 7.4.1 Name section
-  auto parse_namesubsection(Name_subsection_id N, std::invocable<uint32_t /*size*/> auto subsection_parser) -> void;
+  auto parse_namesubsection(Name_subsection_id N, std::invocable<uint32_t /*size*/> auto subsection_parser)
+      -> decltype(subsection_parser(0));
+  auto parse_modulenamesubsec() -> std::string;
   auto parse_funcnamesubsec() -> void;
   auto parse_localnamesubsec() -> void;
   auto parse_globalnamesubsec() -> void;
@@ -453,10 +457,10 @@ struct Wasm_parser {
   // 5.5.16 Modules
   auto parse_magic() -> void;
   auto parse_version() -> void;
-  auto parse_module() -> void;
+  auto parse_module() -> Ast_module;
 };
 
-inline auto parse_wasm(std::istream& is) -> void {
+inline auto parse_wasm(std::istream& is) -> Ast_module {
   auto parser = Wasm_parser{is};
   return parser.parse_module();
 }

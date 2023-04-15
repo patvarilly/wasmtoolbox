@@ -797,7 +797,11 @@ auto Wasm_parser::parse_section(Section_id section_id, std::invocable<uint32_t /
   match_byte(section_id);  // section id
   auto declared_size = parse_u32();
   auto start_offset = cur_offset;
-  
+
+  // TODO: Really need to bound reading within section_parser to declared_size
+  // Otherwise, the beginning of a following section may be confused with more bytes from this section
+  // (e.g., empty name custom section followed by another custom section, vs
+  //  a name custom section with a module name subsection)
   std::invoke(section_parser, declared_size);
   
   auto end_offset = cur_offset;
@@ -814,14 +818,16 @@ auto Wasm_parser::parse_section(Section_id section_id, std::invocable<uint32_t /
 // --------------------
 
 
-auto Wasm_parser::parse_namesubsection(Name_subsection_id N,
-                                       std::invocable<uint32_t /*size*/> auto subsection_parser) -> void {
+auto Wasm_parser::parse_namesubsection(
+    Name_subsection_id N,
+    std::invocable<uint32_t /*size*/> auto subsection_parser)
+    -> decltype(subsection_parser(0)) {
   match_byte(N);
   auto size = parse_u32();
-  std::invoke(subsection_parser, size);
+  return std::invoke(subsection_parser, size);
 }
 
-auto Wasm_parser::parse_customsec() -> void {
+auto Wasm_parser::parse_customsec(Ast_module& module) -> void {
   parse_section(k_section_custom, [&](auto size) {
     auto start_offset = cur_offset;
     auto end_offset = start_offset + size;
@@ -833,6 +839,9 @@ auto Wasm_parser::parse_customsec() -> void {
         auto N_offset = cur_offset;
         auto N = Name_subsection_id{cur_byte};
         switch (N) {
+          case k_name_subsection_module:
+            module.name = parse_modulenamesubsec();
+            break;
           case k_name_subsection_functions:        parse_funcnamesubsec(); break;
           case k_name_subsection_locals:           parse_localnamesubsec(); break;
           case k_name_subsection_globals:          parse_globalnamesubsec(); break;
@@ -856,6 +865,12 @@ auto Wasm_parser::parse_customsec() -> void {
     } else {
       skip_bytes(size - (cur_offset - start_offset));
     }
+  });
+}
+
+auto Wasm_parser::parse_modulenamesubsec() -> std::string {
+  return parse_namesubsection(k_name_subsection_module, [&](auto /*size*/){
+    return parse_name();
   });
 }
 
@@ -1193,41 +1208,45 @@ auto Wasm_parser::parse_version() -> void {
   match_byte(0x01); match_byte(0x00); match_byte(0x00); match_byte(0x00);
 }
 
-auto Wasm_parser::parse_module() -> void {
+auto Wasm_parser::parse_module() -> Ast_module {
+  auto module = Ast_module{};
+  
   parse_magic();
   parse_version();
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_type) { parse_typesec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_import) { parse_importsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_function) { parse_funcsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_table) { parse_tablesec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_memory) { parse_memsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_tag) { parse_tagsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_global) { parse_globalsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_export) { parse_exportsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_start) { parse_startsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_element) { parse_elemsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_data_count) { parse_datacountsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_code) { parse_codesec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   if (not is_->eof() && cur_byte == k_section_data) { parse_datasec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(); }
+  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
   
   if (not is_->eof()) {
     throw std::logic_error(absl::StrFormat(
         "Expected end of file at offset %d, but the data continues: 0x%02x...", cur_offset, cur_byte));
   }
+
+  return module;
 }
 
 }  // namespace wasmtoolbox
