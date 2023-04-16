@@ -30,27 +30,32 @@ auto Text_format_writer::tok_keyword(std::string_view keyword) -> void {
   lex_maybe_ws();
   *os_ << keyword;
   need_ws = true;
+  just_closed_sexp = false;
 }
 
 auto Text_format_writer::tok_left_paren() -> void {
+  lex_maybe_ws();
   *os_ << "(";
   indent_level += 2;
   need_ws = false;
+  just_closed_sexp = false;
 }
 
 auto Text_format_writer::tok_right_paren() -> void {
   *os_ << ")";
   indent_level -= 2;
   need_ws = false;
+  just_closed_sexp = true;
 }
 
 // 6.2.3 White Space
 // -----------------
 
 auto Text_format_writer::lex_maybe_ws() -> void {
-  if (need_ws) {
+  if (need_ws || just_closed_sexp) {
     *os_ << " ";
     need_ws = false;
+    just_closed_sexp = false;
   }
 }
 
@@ -60,6 +65,7 @@ auto Text_format_writer::lex_nl() -> void {
     *os_ << ' ';
   }
   need_ws = false;
+  just_closed_sexp = false;
 }
 
 // 6.3 Values
@@ -87,11 +93,48 @@ auto Text_format_writer::tok_id(std::string_view id) -> void {
   lex_maybe_ws();
   *os_ << '$' << id;
   need_ws = true;
+  just_closed_sexp = false;
+}
+
+
+// 6.4 Types
+// =========
+
+// 6.4.5 Function Types
+// --------------------
+
+auto Text_format_writer::write_functype(const Ast_functype& functype) -> void {
+  tok_left_paren();
+  tok_keyword("func");
+  for (auto param_idx = Ast_localidx{0}; param_idx != std::ssize(functype.params); ++param_idx) {
+    tok_left_paren();
+    tok_keyword("param");
+    tok_id(absl::StrFormat("param%d", param_idx));
+    tok_right_paren();
+  }
+  for (const auto& result : functype.results) {
+    tok_left_paren();
+    tok_keyword("result");
+    tok_right_paren();
+  }
+  tok_right_paren();
 }
 
 
 // 6.6 Modules
 // ===========
+
+// 6.6.2 Types
+// -----------
+
+auto Text_format_writer::write_type(Ast_typeidx type_idx, const Ast_functype& functype) -> void {
+  lex_nl();
+  tok_left_paren();
+  tok_keyword("type");
+  tok_id(absl::StrFormat("type%d", type_idx));
+  write_functype(functype);
+  tok_right_paren();
+}
 
 // 6.6.13 Modules
 // --------------
@@ -101,6 +144,9 @@ auto Text_format_writer::write_module(const Ast_module& module) -> void {
   tok_keyword("module");
   if (module.name.has_value()) {
     tok_id(module.name.value());
+  }
+  for (auto type_idx = Ast_typeidx{0}; type_idx != std::ssize(module.types); ++type_idx) {
+    write_type(type_idx, module.types[type_idx]);
   }
   tok_right_paren();
 }

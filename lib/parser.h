@@ -284,7 +284,8 @@ struct Wasm_parser {
   // ===============
 
   // 5.1.3 Vectors
-  auto parse_vec(std::invocable<uint32_t /*i*/> auto element_parser) -> void;
+  auto parse_vec(std::invocable<uint32_t /*i*/> auto element_parser)
+      -> std::vector<decltype(element_parser(0))>;
 
   
   // 5.2 Values
@@ -332,10 +333,10 @@ struct Wasm_parser {
   auto parse_valtype() -> void;
 
   // 5.3.5 Result Types
-  auto parse_resulttype() -> void;
+  auto parse_resulttype() -> std::vector<Ast_TODO>;
   
   // 5.3.6 Function Types
-  auto parse_functype() -> void;
+  auto parse_functype() -> Ast_functype;
 
   // 5.3.7 Limit Types
   auto parse_limits() -> void;
@@ -384,7 +385,8 @@ struct Wasm_parser {
   auto parse_labelidx() -> void;
   
   // 5.5.2 Sections
-  auto parse_section(Section_id section_id, std::invocable<uint32_t /*size*/> auto section_parser) -> void;
+  auto parse_section(Section_id section_id, std::invocable<uint32_t /*size*/> auto section_parser)
+      -> decltype(section_parser(0));
 
   // 5.5.3 Custom Section
   auto parse_customsec(Ast_module& module) -> void;
@@ -396,36 +398,36 @@ struct Wasm_parser {
   auto parse_localnamesubsec() -> void;
   auto parse_globalnamesubsec() -> void;
   auto parse_datasegmentnamesubsec() -> void;
-  auto parse_namemap(bool dump = false) -> void;
+  auto parse_namemap(bool dump = false) -> std::vector<Ast_TODO>;
   auto parse_nameassoc(bool dump = false) -> void;
-  auto parse_indirectnamemap(bool dump) -> void;
+  auto parse_indirectnamemap(bool dump) -> std::vector<Ast_TODO>;
   auto parse_indirectnameassoc(bool dump) -> void;
 
   // 5.5.4 Type Section
-  auto parse_typesec() -> void;
+  auto parse_typesec() -> std::vector<Ast_functype>;
 
   // 5.5.5 Import Section
-  auto parse_importsec() -> void;
+  auto parse_importsec() -> std::vector<Ast_TODO>;
   auto parse_import() -> void;
   auto parse_importdesc() -> void;
 
   // 5.5.6 Function Section
-  auto parse_funcsec() -> void;
+  auto parse_funcsec() -> std::vector<Ast_TODO>;
 
   // 5.5.7 Table Section
-  auto parse_tablesec() -> void;
+  auto parse_tablesec() -> std::vector<Ast_TODO>;
   auto parse_table() -> void;
 
   // 5.5.8 Memory Section
-  auto parse_memsec() -> void;
+  auto parse_memsec() -> std::vector<Ast_TODO>;
   auto parse_mem() -> void;
 
   // 5.5.9 Global Section
-  auto parse_globalsec() -> void;
+  auto parse_globalsec() -> std::vector<Ast_TODO>;
   auto parse_global() -> void;
 
   // 5.5.10 Export Section
-  auto parse_exportsec() -> void;
+  auto parse_exportsec() -> std::vector<Ast_TODO>;
   auto parse_export() -> void;
   auto parse_exportdesc() -> void;
 
@@ -434,24 +436,24 @@ struct Wasm_parser {
   auto parse_start() -> void;
 
   // 5.5.12 Element Section
-  auto parse_elemsec() -> void;
+  auto parse_elemsec() -> std::vector<Ast_TODO>;
   auto parse_elem() -> void;
 
   // 5.5.13 Code Section
-  auto parse_codesec() -> void;
+  auto parse_codesec() -> std::vector<Ast_TODO>;
   auto parse_code() -> void;
   auto parse_func() -> void;
   auto parse_locals() -> void;
 
   // 5.5.14 Data Section
-  auto parse_datasec() -> void;
+  auto parse_datasec() -> std::vector<Ast_TODO>;
   auto parse_data() -> void;
 
   // 5.5.15 Data Count Section
-  auto parse_datacountsec() -> void;
+  auto parse_datacountsec() -> uint32_t;
 
   // [EXTRA] Tag Section  (5.5.16 in Exception Handling Spec)
-  auto parse_tagsec() -> void;
+  auto parse_tagsec() -> std::vector<Ast_TODO>;
   auto parse_tag() -> void;
 
   // 5.5.16 Modules

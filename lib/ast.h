@@ -20,6 +20,7 @@
 #include <iostream>
 #include <string>
 #include <optional>
+#include <vector>
 
 namespace wasmtoolbox {
 
@@ -34,9 +35,29 @@ namespace wasmtoolbox {
 // - Extended name section (1.0, Draft Jul 08, 2019):
 //     https://www.scheidecker.net/2019-07-08-extended-name-section-spec/appendix/custom.html
 
-struct Ast_module {
-  std::optional<std::string> name;
+// TODO: Get rid of this when no longer needed
+struct Ast_TODO {};  // A node on the AST that we don't deal with yet
+
+// 2.3 Types
+// =========
+
+// 2.3.6 Function Types
+struct Ast_functype {
+  std::vector<Ast_TODO> params{};
+  std::vector<Ast_TODO> results{};
 };
+
+// 2.5 Modules
+// ===========
+
+struct Ast_module {
+  std::optional<std::string> name{};
+  std::vector<Ast_functype> types{};
+};
+
+// 2.5.1 Indices
+using Ast_typeidx = uint32_t;
+using Ast_localidx = uint32_t;
 
 }  // namespace wasmtoolbox
 

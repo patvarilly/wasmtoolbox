@@ -67,4 +67,28 @@ TEST(text_format_writer, id) {
   EXPECT_THAT(do_it("$"), testing::Eq("$$"));
 }
 
+TEST(text_format_writer, module_with_two_types) {
+  auto module = Ast_module{
+    .types = {
+      Ast_functype{
+        .params = {Ast_TODO{}, Ast_TODO{}},
+        .results = {Ast_TODO{}}
+      },
+      Ast_functype{
+        .params = {},
+        .results = {Ast_TODO{}, Ast_TODO{}}
+      }
+    }
+  };
+  auto os = std::stringstream{};
+  auto w = Text_format_writer{os};
+
+  w.write_module(module);
+
+  EXPECT_THAT(os.str(), testing::StrEq(
+      "(module\n"
+      "  (type $type0 (func (param $param0) (param $param1) (result)))\n"
+      "  (type $type1 (func (result) (result))))"));
+}
+
 }  // namespace wasmtoolbox

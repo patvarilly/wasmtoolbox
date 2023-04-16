@@ -50,6 +50,7 @@ struct Text_format_writer {
   // 6.2.3 White Space
   bool need_ws = false;
   int indent_level = 0;
+  bool just_closed_sexp = false;
   auto lex_maybe_ws() -> void;
   auto lex_nl() -> void;
 
@@ -59,8 +60,17 @@ struct Text_format_writer {
   // 6.3.5 Identifiers
   auto tok_id(std::string_view id) -> void;
 
+  // 6.4 Types
+  // =========
+
+  // 6.4.5 Function Types
+  auto write_functype(const Ast_functype& functype) -> void;
+  
   // 6.6 Modules
   // ===========
+
+  // 6.6.2 Types
+  auto write_type(Ast_typeidx type_idx, const Ast_functype& functype) -> void;
   
   // 6.6.13 Modules
   auto write_module(const Ast_module& module) -> void;

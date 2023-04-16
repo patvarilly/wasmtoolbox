@@ -47,12 +47,20 @@ auto Wasm_parser::skip_bytes(std::streamsize count) -> void {
 // 5.1.3 Vectors
 // -------------
 
-auto Wasm_parser::parse_vec(std::invocable<uint32_t /*i*/> auto element_parser) -> void {
+auto Wasm_parser::parse_vec(std::invocable<uint32_t /*i*/> auto element_parser)
+    -> std::vector<decltype(element_parser(0))> {
+  using Elem_type = decltype(element_parser(0));
+  auto result = std::vector<Elem_type>{};
+  
   auto n = parse_u32();
+  result.reserve(n);
   CHECK_NE(n, std::numeric_limits<uint32_t>::max()) << "would overflow loop!";
+  
   for (auto i = uint32_t{0}; i != n; ++i) {
-    std::invoke(element_parser, i);
+    result.push_back(std::invoke(element_parser, i));
   }
+
+  return result;
 }
 
 
@@ -229,12 +237,15 @@ auto Wasm_parser::parse_f64() -> double {
 // -----------
 
 auto Wasm_parser::parse_name() -> std::string {
+  // Don't use parse_vec to avoid creating a std::vector<char> followed by a copy
+  auto n = parse_u32();
   auto result = std::string{};
-  parse_vec([&](auto /*i*/) {
+  result.reserve(n);
+  CHECK_NE(n, std::numeric_limits<uint32_t>::max()) << "would overflow loop!";
+  for (auto i = uint32_t{0}; i != n; ++i) {
     result.push_back(parse_byte());
-  });
+  }
 
-  // Don't check UTF-8 validity...
   return result;
 }
 
@@ -326,19 +337,24 @@ auto Wasm_parser::parse_valtype() -> void {
 // 5.3.5 Result Types
 // ------------------
 
-auto Wasm_parser::parse_resulttype() -> void {
-  parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_resulttype() -> std::vector<Ast_TODO> {
+  return parse_vec([&](auto /*i*/) {
     parse_valtype();
+    return Ast_TODO{};
   });
 }
 
 // 5.3.6 Function Types
 // --------------------
 
-auto Wasm_parser::parse_functype() -> void {
+auto Wasm_parser::parse_functype() -> Ast_functype {
   match_byte(0x60);
-  parse_resulttype();  // rt1
-  parse_resulttype();  // rt2
+  auto params = parse_resulttype();  // rt1
+  auto results = parse_resulttype();  // rt2
+  return Ast_functype{
+    .params = std::move(params),
+    .results = std::move(results)
+  };
 }
 
 // 5.3.7 Limits
@@ -491,6 +507,7 @@ auto Wasm_parser::parse_instr() -> void {
     case k_instr_br_table: {
       parse_vec([&](auto /*i*/) {
         parse_labelidx();
+        return Ast_TODO{};
       });
       parse_labelidx();
       break;
@@ -793,7 +810,8 @@ auto Wasm_parser::parse_labelidx() -> void {
 // 5.5.2 Sections
 // --------------
 
-auto Wasm_parser::parse_section(Section_id section_id, std::invocable<uint32_t /*size*/> auto section_parser) -> void {
+auto Wasm_parser::parse_section(Section_id section_id, std::invocable<uint32_t /*size*/> auto section_parser)
+    -> decltype(section_parser(0)) {
   match_byte(section_id);  // section id
   auto declared_size = parse_u32();
   auto start_offset = cur_offset;
@@ -802,7 +820,7 @@ auto Wasm_parser::parse_section(Section_id section_id, std::invocable<uint32_t /
   // Otherwise, the beginning of a following section may be confused with more bytes from this section
   // (e.g., empty name custom section followed by another custom section, vs
   //  a name custom section with a module name subsection)
-  std::invoke(section_parser, declared_size);
+  auto result = std::invoke(section_parser, declared_size);
   
   auto end_offset = cur_offset;
   auto actual_size = end_offset - start_offset;
@@ -812,6 +830,8 @@ auto Wasm_parser::parse_section(Section_id section_id, std::invocable<uint32_t /
         "Invalid section id %d in byte range [%d,%d): declared size %d doesn't match actual size %d",
         section_id, start_offset, end_offset, declared_size, actual_size)); 
   }
+
+  return result;
 }
 
 // 5.5.3 Custom Section
@@ -865,6 +885,7 @@ auto Wasm_parser::parse_customsec(Ast_module& module) -> void {
     } else {
       skip_bytes(size - (cur_offset - start_offset));
     }
+    return Ast_TODO{};
   });
 }
 
@@ -902,9 +923,10 @@ auto Wasm_parser::parse_datasegmentnamesubsec() -> void {
   });
 }
 
-auto Wasm_parser::parse_namemap(bool dump) -> void {
-  parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_namemap(bool dump) -> std::vector<Ast_TODO> {
+  return parse_vec([&](auto /*i*/) {
     parse_nameassoc(dump);
+    return Ast_TODO{};
   });
 }
 
@@ -916,9 +938,10 @@ auto Wasm_parser::parse_nameassoc(bool dump) -> void {
   }
 }
 
-auto Wasm_parser::parse_indirectnamemap(bool dump) -> void {
-  parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_indirectnamemap(bool dump) -> std::vector<Ast_TODO> {
+  return parse_vec([&](auto /*i*/) {
     parse_indirectnameassoc(dump);
+    return Ast_TODO{};
   });
 }
 
@@ -933,10 +956,10 @@ auto Wasm_parser::parse_indirectnameassoc(bool dump) -> void {
 // 5.5.4 Type Section
 // ------------------
 
-auto Wasm_parser::parse_typesec() -> void {
-  parse_section(k_section_type, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
-      parse_functype();
+auto Wasm_parser::parse_typesec() -> std::vector<Ast_functype> {
+  return parse_section(k_section_type, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
+      return parse_functype();
     });
   });
 }
@@ -944,10 +967,11 @@ auto Wasm_parser::parse_typesec() -> void {
 // 5.5.5 Import Section
 // --------------------
 
-auto Wasm_parser::parse_importsec() -> void {
-  parse_section(k_section_import, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_importsec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_import, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_import();
+      return Ast_TODO{};
     });
   });
 }
@@ -976,10 +1000,11 @@ auto Wasm_parser::parse_importdesc() -> void {
 // 5.5.6 Function Section
 // ----------------------
 
-auto Wasm_parser::parse_funcsec() -> void {
-  parse_section(k_section_function, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_funcsec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_function, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_typeidx();
+      return Ast_TODO{};
     });
   });
 }
@@ -987,10 +1012,11 @@ auto Wasm_parser::parse_funcsec() -> void {
 // 5.5.7 Table Section
 // -------------------
 
-auto Wasm_parser::parse_tablesec() -> void {
-  parse_section(k_section_table, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_tablesec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_table, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_table();
+      return Ast_TODO{};
     });
   });
 }
@@ -1002,10 +1028,11 @@ auto Wasm_parser::parse_table() -> void {
 // 5.5.8 Memory Section
 // --------------------
 
-auto Wasm_parser::parse_memsec() -> void {
-  parse_section(k_section_memory, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_memsec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_memory, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_mem();
+      return Ast_TODO{};
     });
   });
 }
@@ -1017,10 +1044,11 @@ auto Wasm_parser::parse_mem() -> void {
 // 5.5.9 Global Section
 // --------------------
 
-auto Wasm_parser::parse_globalsec() -> void {
-  parse_section(k_section_global, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_globalsec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_global, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_global();
+      return Ast_TODO{};
     });
   });
 }
@@ -1033,10 +1061,11 @@ auto Wasm_parser::parse_global() -> void {
 // 5.5.10 Export Section
 // ---------------------
 
-auto Wasm_parser::parse_exportsec() -> void {
-  parse_section(k_section_export, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_exportsec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_export, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_export();
+      return Ast_TODO{};
     });
   });
 }
@@ -1068,6 +1097,7 @@ auto Wasm_parser::parse_exportdesc() -> void {
 auto Wasm_parser::parse_startsec() -> void {
   parse_section(k_section_start, [&](auto /*size*/) {
     parse_start();
+    return Ast_TODO{};
   });
 }
 
@@ -1078,10 +1108,11 @@ auto Wasm_parser::parse_start() -> void {
 // 5.5.12 Element Section
 // ----------------------
 
-auto Wasm_parser::parse_elemsec() -> void {
-  parse_section(k_section_element, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_elemsec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_element, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_elem();
+      return Ast_TODO{};
     });
   });
 }
@@ -1094,6 +1125,7 @@ auto Wasm_parser::parse_elem() -> void {
       parse_expr();
       parse_vec([&](auto /*i*/) {
         parse_funcidx();
+        return Ast_TODO{};
       });
       break;
 
@@ -1108,10 +1140,11 @@ auto Wasm_parser::parse_elem() -> void {
 // 5.5.13 Code Section
 // -------------------
 
-auto Wasm_parser::parse_codesec() -> void {
-  parse_section(k_section_code, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_codesec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_code, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_code();
+      return Ast_TODO{};
     });
   });
 }
@@ -1124,6 +1157,7 @@ auto Wasm_parser::parse_code() -> void {
 auto Wasm_parser::parse_func() -> void {
   parse_vec([&](auto /*i*/) {
     parse_locals();
+    return Ast_TODO{};
   });
   parse_expr();
 }
@@ -1136,10 +1170,11 @@ auto Wasm_parser::parse_locals() -> void {
 // 5.5.14 Data Section
 // -------------------
 
-auto Wasm_parser::parse_datasec() -> void {
-  parse_section(k_section_data, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_datasec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_data, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_data();
+      return Ast_TODO{};
     });
   });
 }
@@ -1151,19 +1186,19 @@ auto Wasm_parser::parse_data() -> void {
     case 0: // active, implicit memory index 0
       parse_expr();  // e
       parse_vec([&](auto /*i*/) {
-        parse_byte();
+        return parse_byte();
       });
       break;
     case 1: // passive
       parse_vec([&](auto /*i*/) {
-        parse_byte();
+        return parse_byte();
       });
       break;
     case 2: // active, explicit memory
       parse_memidx();  // x
       parse_expr();  // e
       parse_vec([&](auto /*i*/) {
-        parse_byte();
+        return parse_byte();
       });
       break;
     default:
@@ -1175,19 +1210,20 @@ auto Wasm_parser::parse_data() -> void {
 // 5.5.15 Data Count Section
 // -------------------------
 
-auto Wasm_parser::parse_datacountsec() -> void {
-  parse_section(k_section_data_count, [&](auto /*size*/) {
-    parse_u32();  // n
+auto Wasm_parser::parse_datacountsec() -> uint32_t {
+  return parse_section(k_section_data_count, [&](auto /*size*/) {
+    return parse_u32();  // n
   });
 }
 
 // [EXTRA] Tag Section (5.5.16 in Exception Handling Spec)
 // -------------------------------------------------------
 
-auto Wasm_parser::parse_tagsec() -> void {
-  parse_section(k_section_tag, [&](auto /*size*/) {
-    parse_vec([&](auto /*i*/) {
+auto Wasm_parser::parse_tagsec() -> std::vector<Ast_TODO> {
+  return parse_section(k_section_tag, [&](auto /*size*/) {
+    return parse_vec([&](auto /*i*/) {
       parse_tag();
+      return Ast_TODO{};
     });
   });
 }
@@ -1210,36 +1246,41 @@ auto Wasm_parser::parse_version() -> void {
 
 auto Wasm_parser::parse_module() -> Ast_module {
   auto module = Ast_module{};
+  auto parse_opt_customsecs = [&]{
+    while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  };
   
   parse_magic();
   parse_version();
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
-  if (not is_->eof() && cur_byte == k_section_type) { parse_typesec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
+  if (not is_->eof() && cur_byte == k_section_type) {
+    module.types = parse_typesec();
+  }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_import) { parse_importsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_function) { parse_funcsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_table) { parse_tablesec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_memory) { parse_memsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_tag) { parse_tagsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_global) { parse_globalsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_export) { parse_exportsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_start) { parse_startsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_element) { parse_elemsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_data_count) { parse_datacountsec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_code) { parse_codesec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_data) { parse_datasec(); }
-  while (not is_->eof() && cur_byte == k_section_custom) { parse_customsec(module); }
+  parse_opt_customsecs();
   
   if (not is_->eof()) {
     throw std::logic_error(absl::StrFormat(
