@@ -63,6 +63,18 @@ struct Text_format_writer {
   // 6.4 Types
   // =========
 
+  // 6.4.1 Number Types
+  auto write_numtype(Ast_numtype numtype) -> void;
+
+  // 6.4.2 Vector Types
+  auto write_vectype(Ast_vectype vectype) -> void;
+
+  // 6.4.3 Reference Types
+  auto write_reftype(Ast_reftype reftype) -> void;
+
+  // 6.4.4 Value Types
+  auto write_valtype(Ast_valtype valtype) -> void;
+  
   // 6.4.5 Function Types
   auto write_functype(const Ast_functype& functype) -> void;
   

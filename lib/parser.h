@@ -320,20 +320,20 @@ struct Wasm_parser {
   // =========
 
   // 5.3.1 Number Types
-  auto parse_numtype() -> void;
+  auto parse_numtype() -> Ast_numtype;
 
   // 5.3.2 Vector Types
-  auto parse_vectype() -> void;
+  auto parse_vectype() -> Ast_vectype;
 
   // 5.3.3 Reference Types
-  auto parse_reftype() -> void;
+  auto parse_reftype() -> Ast_reftype;
 
   // 5.3.4 Value Types
   auto can_parse_valtype() -> bool;
-  auto parse_valtype() -> void;
+  auto parse_valtype() -> Ast_valtype;
 
   // 5.3.5 Result Types
-  auto parse_resulttype() -> std::vector<Ast_TODO>;
+  auto parse_resulttype() -> Ast_resulttype;
   
   // 5.3.6 Function Types
   auto parse_functype() -> Ast_functype;

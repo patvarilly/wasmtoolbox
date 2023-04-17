@@ -41,10 +41,41 @@ struct Ast_TODO {};  // A node on the AST that we don't deal with yet
 // 2.3 Types
 // =========
 
+// 2.3.1 Number Types
+// 2.3.2 Vector Types
+// 2.3.3 Reference Types
+// 2.3.4 Value Types
+//
+// These are all tags with no extra information, so we pack them into a single enum.
+// The specific types are merely aliases to the general valtype, purely for information.
+// It would be cleaner to define separate enum classes and use a std::variant to join them
+// up in valtype, but for now, that feels like overkill
+
+enum Ast_valtype {
+  // 2.3.1 Number Types
+  k_numtype_i32,
+  k_numtype_i64,
+  k_numtype_f32,
+  k_numtype_f64,
+
+  // 2.3.2 Vector Types
+  k_vectype_v128,
+
+  // 2.3.3 Reference Types
+  k_reftype_funcref,
+  k_reftype_externref
+};
+using Ast_numtype = Ast_valtype;
+using Ast_vectype = Ast_valtype;
+using Ast_reftype = Ast_valtype;
+
+/// 2.3.5 Result Types
+using Ast_resulttype = std::vector<Ast_valtype>;
+
 // 2.3.6 Function Types
 struct Ast_functype {
-  std::vector<Ast_TODO> params{};
-  std::vector<Ast_TODO> results{};
+  Ast_resulttype params{};
+  Ast_resulttype results{};
 };
 
 // 2.5 Modules

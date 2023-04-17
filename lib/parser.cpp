@@ -255,14 +255,14 @@ auto Wasm_parser::parse_name() -> std::string {
 // 5.3.1 Number Types
 // ------------------
 
-auto Wasm_parser::parse_numtype() -> void {
+auto Wasm_parser::parse_numtype() -> Ast_numtype {
   auto b_offset = cur_offset;
   auto b = parse_byte();
   switch (b) {
-    case 0x7F: return;  // i32
-    case 0x7E: return;  // i64
-    case 0x7D: return;  // f32
-    case 0x7C: return;  // f64
+    case 0x7F: return k_numtype_i32;
+    case 0x7E: return k_numtype_i64;
+    case 0x7D: return k_numtype_f32;
+    case 0x7C: return k_numtype_f64;
     default:
       throw std::logic_error(absl::StrFormat(
           "Unrecognized numtype 0x%02x at offset %d", b, b_offset));
@@ -272,11 +272,11 @@ auto Wasm_parser::parse_numtype() -> void {
 // 5.3.2 Vector Types
 // ------------------
 
-auto Wasm_parser::parse_vectype() -> void {
+auto Wasm_parser::parse_vectype() -> Ast_vectype {
   auto b_offset = cur_offset;
   auto b = parse_byte();
   switch (b) {
-    case 0x7B: return;  // v128
+    case 0x7B: return k_vectype_v128;
     default:
       throw std::logic_error(absl::StrFormat(
           "Unrecognized vectype 0x%02x at offset %d", b, b_offset));
@@ -286,12 +286,12 @@ auto Wasm_parser::parse_vectype() -> void {
 // 5.3.3 Reference Types
 // ---------------------
 
-auto Wasm_parser::parse_reftype() -> void {
+auto Wasm_parser::parse_reftype() -> Ast_reftype {
   auto b_offset = cur_offset;
   auto b = parse_byte();
   switch (b) {
-    case 0x70: return;  // funcref
-    case 0x6F: return;  // externref
+    case 0x70: return k_reftype_funcref;
+    case 0x6F: return k_reftype_externref;
     default:
       throw std::logic_error(absl::StrFormat(
           "Unrecognized reftype 0x%02x at offset %d", b, b_offset));
@@ -316,7 +316,7 @@ auto Wasm_parser::can_parse_valtype() -> bool {
   }
 }
 
-auto Wasm_parser::parse_valtype() -> void {
+auto Wasm_parser::parse_valtype() -> Ast_valtype {
   switch (cur_byte) {
     case 0x7F:
     case 0x7E:
@@ -337,10 +337,9 @@ auto Wasm_parser::parse_valtype() -> void {
 // 5.3.5 Result Types
 // ------------------
 
-auto Wasm_parser::parse_resulttype() -> std::vector<Ast_TODO> {
+auto Wasm_parser::parse_resulttype() -> Ast_resulttype {
   return parse_vec([&](auto /*i*/) {
-    parse_valtype();
-    return Ast_TODO{};
+    return parse_valtype();
   });
 }
 
@@ -349,8 +348,8 @@ auto Wasm_parser::parse_resulttype() -> std::vector<Ast_TODO> {
 
 auto Wasm_parser::parse_functype() -> Ast_functype {
   match_byte(0x60);
-  auto params = parse_resulttype();  // rt1
-  auto results = parse_resulttype();  // rt2
+  auto params = parse_resulttype();
+  auto results = parse_resulttype();
   return Ast_functype{
     .params = std::move(params),
     .results = std::move(results)

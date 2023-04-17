@@ -71,12 +71,12 @@ TEST(text_format_writer, module_with_two_types) {
   auto module = Ast_module{
     .types = {
       Ast_functype{
-        .params = {Ast_TODO{}, Ast_TODO{}},
-        .results = {Ast_TODO{}}
+        .params = {k_numtype_i32, k_numtype_i64, k_vectype_v128},
+        .results = {k_numtype_f32, k_numtype_f64}
       },
       Ast_functype{
         .params = {},
-        .results = {Ast_TODO{}, Ast_TODO{}}
+        .results = {k_reftype_funcref, k_reftype_externref}
       }
     }
   };
@@ -87,8 +87,9 @@ TEST(text_format_writer, module_with_two_types) {
 
   EXPECT_THAT(os.str(), testing::StrEq(
       "(module\n"
-      "  (type $type0 (func (param $param0) (param $param1) (result)))\n"
-      "  (type $type1 (func (result) (result))))"));
+      "  (type $type0 (func (param $param0 i32) (param $param1 i64) (param $param2 v128) "
+      "(result f32) (result f64)))\n"
+      "  (type $type1 (func (result funcref) (result externref))))"));
 }
 
 }  // namespace wasmtoolbox

@@ -100,6 +100,49 @@ auto Text_format_writer::tok_id(std::string_view id) -> void {
 // 6.4 Types
 // =========
 
+// 6.4.1 Number Types
+// ------------------
+
+auto Text_format_writer::write_numtype(Ast_numtype numtype) -> void {
+  // See ast.h for why numtype and valtype are actually the same
+  write_valtype(numtype);
+}
+
+
+// 6.4.2 Vector Types
+// ------------------
+
+auto Text_format_writer::write_vectype(Ast_vectype vectype) -> void {
+  // See ast.h for why vectype and valtype are actually the same
+  write_valtype(vectype);
+}
+
+// 6.4.3 Reference Types
+// ---------------------
+
+auto Text_format_writer::write_reftype(Ast_reftype reftype) -> void {
+  // See ast.h for why reftype and valtype are actually the same
+  write_valtype(reftype);
+}
+
+// 6.4.4 Value Types
+// -----------------
+
+auto Text_format_writer::write_valtype(Ast_valtype valtype) -> void {
+  switch (valtype) {
+    case k_numtype_i32: return tok_keyword("i32");
+    case k_numtype_i64: return tok_keyword("i64");
+    case k_numtype_f32: return tok_keyword("f32");
+    case k_numtype_f64: return tok_keyword("f64");
+    case k_vectype_v128: return tok_keyword("v128");
+    case k_reftype_funcref: return tok_keyword("funcref");
+    case k_reftype_externref: return tok_keyword("externref");
+    default:
+      throw std::logic_error(absl::StrFormat(
+          "Unrecognized Ast_valtype %d", valtype));
+  }
+}
+
 // 6.4.5 Function Types
 // --------------------
 
@@ -110,11 +153,13 @@ auto Text_format_writer::write_functype(const Ast_functype& functype) -> void {
     tok_left_paren();
     tok_keyword("param");
     tok_id(absl::StrFormat("param%d", param_idx));
+    write_valtype(functype.params[param_idx]);
     tok_right_paren();
   }
   for (const auto& result : functype.results) {
     tok_left_paren();
     tok_keyword("result");
+    write_valtype(result);
     tok_right_paren();
   }
   tok_right_paren();

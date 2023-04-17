@@ -21,6 +21,7 @@
 #include "absl/strings/str_format.h"
 
 #include "parser.h"
+#include "text_format.h"
 
 namespace wasmtoolbox {
 
@@ -51,8 +52,9 @@ auto main(int argc, char** argv) -> int {
       std::cerr << absl::StreamFormat("Error: could not open file %s\n", filename);
       return EXIT_FAILURE;
     }
-    parse_wasm(is);
-    // TODO: Generate AST and produce WAT
+    auto module = parse_wasm(is);
+    auto w = Text_format_writer{std::cout};
+    w.write_module(module);
   } else {
     usage();
   }
