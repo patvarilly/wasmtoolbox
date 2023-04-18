@@ -87,9 +87,8 @@ TEST(text_format_writer, module_with_two_types) {
 
   EXPECT_THAT(os.str(), testing::StrEq(
       "(module\n"
-      "  (type $type0 (func (param $param0 i32) (param $param1 i64) (param $param2 v128) "
-      "(result f32) (result f64)))\n"
-      "  (type $type1 (func (result funcref) (result externref))))"));
+      "  (type (;0;) (func (param i32 i64 v128) (result f32 f64)))\n"
+      "  (type (;1;) (func (result funcref externref))))"));
 }
 
 }  // namespace wasmtoolbox

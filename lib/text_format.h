@@ -54,6 +54,9 @@ struct Text_format_writer {
   auto lex_maybe_ws() -> void;
   auto lex_nl() -> void;
 
+  // 6.2.4 Comments
+  auto lex_blockcomment(std::string_view comment) -> void;
+
   // 6.3 Values
   // ==========
 

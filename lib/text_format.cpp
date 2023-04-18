@@ -68,6 +68,21 @@ auto Text_format_writer::lex_nl() -> void {
   just_closed_sexp = false;
 }
 
+// 6.2.4 Comments
+// --------------
+
+auto Text_format_writer::lex_blockcomment(std::string_view comment) -> void {
+  lex_maybe_ws();
+  *os_ << "(;";
+  // Assume doesn't contain an improperly nested closing ";)"
+  // TODO: Check the above!
+  *os_ << comment;
+  *os_ << ";)";
+  need_ws = true;
+  just_closed_sexp = true;
+}
+
+
 // 6.3 Values
 // ==========
 
@@ -149,17 +164,20 @@ auto Text_format_writer::write_valtype(Ast_valtype valtype) -> void {
 auto Text_format_writer::write_functype(const Ast_functype& functype) -> void {
   tok_left_paren();
   tok_keyword("func");
-  for (auto param_idx = Ast_localidx{0}; param_idx != std::ssize(functype.params); ++param_idx) {
+  if (not functype.params.empty()) {
     tok_left_paren();
     tok_keyword("param");
-    tok_id(absl::StrFormat("param%d", param_idx));
-    write_valtype(functype.params[param_idx]);
+    for (const auto& param : functype.params) {
+      write_valtype(param);
+    }
     tok_right_paren();
   }
-  for (const auto& result : functype.results) {
+  if (not functype.results.empty()) {
     tok_left_paren();
     tok_keyword("result");
-    write_valtype(result);
+    for (const auto& result : functype.results) {
+      write_valtype(result);
+    }
     tok_right_paren();
   }
   tok_right_paren();
@@ -176,7 +194,7 @@ auto Text_format_writer::write_type(Ast_typeidx type_idx, const Ast_functype& fu
   lex_nl();
   tok_left_paren();
   tok_keyword("type");
-  tok_id(absl::StrFormat("type%d", type_idx));
+  lex_blockcomment(absl::StrFormat("%d", type_idx));
   write_functype(functype);
   tok_right_paren();
 }
