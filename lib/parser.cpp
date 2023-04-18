@@ -966,19 +966,22 @@ auto Wasm_parser::parse_typesec() -> std::vector<Ast_functype> {
 // 5.5.5 Import Section
 // --------------------
 
-auto Wasm_parser::parse_importsec() -> std::vector<Ast_TODO> {
+auto Wasm_parser::parse_importsec() -> std::vector<Ast_import> {
   return parse_section(k_section_import, [&](auto /*size*/) {
     return parse_vec([&](auto /*i*/) {
-      parse_import();
-      return Ast_TODO{};
+      return parse_import();
     });
   });
 }
 
-auto Wasm_parser::parse_import() -> void {
-  parse_name();  // mod
-  parse_name();  // nm
-  parse_importdesc();  // d
+auto Wasm_parser::parse_import() -> Ast_import {
+  auto module = parse_name();
+  auto name = parse_name();
+  parse_importdesc();
+  return Ast_import{
+    .module = std::move(module),
+    .name = std::move(name)
+  };
 }
 
 auto Wasm_parser::parse_importdesc() -> void {
@@ -1256,7 +1259,9 @@ auto Wasm_parser::parse_module() -> Ast_module {
     module.types = parse_typesec();
   }
   parse_opt_customsecs();
-  if (not is_->eof() && cur_byte == k_section_import) { parse_importsec(); }
+  if (not is_->eof() && cur_byte == k_section_import) {
+    module.imports = parse_importsec();
+  }
   parse_opt_customsecs();
   if (not is_->eof() && cur_byte == k_section_function) { parse_funcsec(); }
   parse_opt_customsecs();

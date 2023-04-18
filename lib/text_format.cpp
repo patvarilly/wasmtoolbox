@@ -86,6 +86,41 @@ auto Text_format_writer::lex_blockcomment(std::string_view comment) -> void {
 // 6.3 Values
 // ==========
 
+// 6.3.3 Strings
+// -------------
+
+auto Text_format_writer::tok_string(std::string_view str) -> void {
+  lex_maybe_ws();
+  *os_ << '\"';
+  for (const auto& c : str) {
+    // Not yet handling UTF-8 parsing: instead, dump raw bytes outside 7-bit ASCII
+    switch (c) {
+      case '\t': *os_ << "\\t"; break;
+      case '\n': *os_ << "\\n"; break;
+      case '\r': *os_ << "\\r"; break;
+      case '\"': *os_ << "\\\""; break;
+      case '\'': *os_ << "\\'"; break;
+      case '\\': *os_ << "\\\\"; break;
+      default:
+        if (c >= 0x20 && c < 0x7F) {
+          *os_ << static_cast<char>(c);
+        } else {
+          *os_ << absl::StreamFormat("\\%02x", c);
+        }
+    }
+  }
+  *os_ << '\"';
+  need_ws = true;
+  just_closed_sexp = false;
+}
+
+// 6.3.4 Names
+// -----------
+
+auto Text_format_writer::tok_name(std::string_view name) -> void {
+  tok_string(name);
+}
+
 // 6.3.5 Identifiers
 // -----------------
 
@@ -190,12 +225,24 @@ auto Text_format_writer::write_functype(const Ast_functype& functype) -> void {
 // 6.6.2 Types
 // -----------
 
-auto Text_format_writer::write_type(Ast_typeidx type_idx, const Ast_functype& functype) -> void {
+auto Text_format_writer::write_type(Ast_typeidx typeidx, const Ast_functype& functype) -> void {
   lex_nl();
   tok_left_paren();
   tok_keyword("type");
-  lex_blockcomment(absl::StrFormat("%d", type_idx));
+  lex_blockcomment(absl::StrFormat("%d", typeidx));
   write_functype(functype);
+  tok_right_paren();
+}
+
+// 6.6.4 Imports
+// -------------
+
+auto Text_format_writer::write_import(const Ast_import& import) -> void {
+  lex_nl();
+  tok_left_paren();
+  tok_keyword("import");
+  tok_name(import.module);
+  tok_name(import.name);
   tok_right_paren();
 }
 
@@ -208,8 +255,11 @@ auto Text_format_writer::write_module(const Ast_module& module) -> void {
   if (module.name.has_value()) {
     tok_id(module.name.value());
   }
-  for (auto type_idx = Ast_typeidx{0}; type_idx != std::ssize(module.types); ++type_idx) {
-    write_type(type_idx, module.types[type_idx]);
+  for (auto typeidx = Ast_typeidx{0}; typeidx != std::ssize(module.types); ++typeidx) {
+    write_type(typeidx, module.types[typeidx]);
+  }
+  for (const auto& import : module.imports) {
+    write_import(import);
   }
   tok_right_paren();
 }

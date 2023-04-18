@@ -81,14 +81,26 @@ struct Ast_functype {
 // 2.5 Modules
 // ===========
 
-struct Ast_module {
-  std::optional<std::string> name{};
-  std::vector<Ast_functype> types{};
-};
+// Ast_module definition below to allow referring to module component types
 
 // 2.5.1 Indices
 using Ast_typeidx = uint32_t;
+using Ast_funcidx = uint32_t;
 using Ast_localidx = uint32_t;
+
+// 2.5.11 Imports
+struct Ast_import {
+  std::string module;
+  std::string name;
+  // TODO: importdesc
+};
+
+// -- module --
+struct Ast_module {
+  std::optional<std::string> name{};
+  std::vector<Ast_functype> types{};
+  std::vector<Ast_import> imports{};
+};
 
 }  // namespace wasmtoolbox
 

@@ -407,9 +407,9 @@ struct Wasm_parser {
   auto parse_typesec() -> std::vector<Ast_functype>;
 
   // 5.5.5 Import Section
-  auto parse_importsec() -> std::vector<Ast_TODO>;
-  auto parse_import() -> void;
   auto parse_importdesc() -> void;
+  auto parse_importsec() -> std::vector<Ast_import>;
+  auto parse_import() -> Ast_import;
 
   // 5.5.6 Function Section
   auto parse_funcsec() -> std::vector<Ast_TODO>;

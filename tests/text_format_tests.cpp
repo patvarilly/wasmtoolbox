@@ -91,4 +91,28 @@ TEST(text_format_writer, module_with_two_types) {
       "  (type (;1;) (func (result funcref externref))))"));
 }
 
+TEST(text_format_writer, module_with_imports) {
+  auto module = Ast_module{
+    .imports = {
+      Ast_import{
+        .module = "mod1",
+        .name = "name2"
+      },
+      Ast_import{
+        .module = "mod3",
+        .name = "name4"
+      }
+    }
+  };
+  auto os = std::stringstream{};
+  auto w = Text_format_writer{os};
+
+  w.write_module(module);
+
+  EXPECT_THAT(os.str(), testing::StrEq(
+      "(module\n"
+      "  (import \"mod1\" \"name2\")\n"
+      "  (import \"mod3\" \"name4\"))"));
+}
+
 }  // namespace wasmtoolbox

@@ -60,6 +60,12 @@ struct Text_format_writer {
   // 6.3 Values
   // ==========
 
+  // 6.3.3 Strings
+  auto tok_string(std::string_view str) -> void;
+  
+  // 6.3.4 Names
+  auto tok_name(std::string_view name) -> void;
+  
   // 6.3.5 Identifiers
   auto tok_id(std::string_view id) -> void;
 
@@ -85,7 +91,10 @@ struct Text_format_writer {
   // ===========
 
   // 6.6.2 Types
-  auto write_type(Ast_typeidx type_idx, const Ast_functype& functype) -> void;
+  auto write_type(Ast_typeidx typeidx, const Ast_functype& functype) -> void;
+
+  // 6.6.4 Imports
+  auto write_import(const Ast_import& import) -> void;
   
   // 6.6.13 Modules
   auto write_module(const Ast_module& module) -> void;
